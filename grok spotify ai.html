@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tyhred - Umyt Singer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Figtree', sans-serif; background: #000; color: #fff; overflow: hidden; height: 100vh; margin: 0; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        .card { transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .card:hover { transform: scale(1.04) translateY(-4px); background: #282828 !important; }
+        .float-play { opacity: 0; transform: translateY(20px) scale(0.8); transition: all 0.4s ease; }
+        .card:hover .float-play { opacity: 1; transform: translateY(0) scale(1); }
+        .active-track { color: #1ed760 !important; font-weight: 600; background: rgba(30,215,96,0.08) !important; }
+        #visualizer { height: 60px; background: linear-gradient(to bottom, #1ed76022, transparent); }
+        #admin-panel { display: none; }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-72 bg-black p-5 flex flex-col gap-6 border-r border-zinc-900">
+        <div class="flex items-center gap-3 mb-4">
+            <img src="https://via.placeholder.com/32?text=T" class="w-8 h-8 rounded-full" alt="Tyhred"/>
+            <span class="text-2xl font-black tracking-tight">Tyhred</span>
+        </div>
+        <nav class="space-y-5 text-zinc-300">
+            <div class="flex items-center gap-5 font-medium hover:text-white cursor-pointer"><i class="fas fa-home w-6"></i> Ana Sayfa</div>
+            <div onclick="focusSearch()" class="flex items-center gap-5 font-medium hover:text-white cursor-pointer"><i class="fas fa-search w-6"></i> Ara</div>
+            <div class="flex items-center gap-5 font-medium hover:text-white cursor-pointer"><i class="fas fa-book w-6"></i> Kitaplığın</div>
+        </nav>
+        <div class="mt-8">
+            <div class="flex items-center justify-between text-sm text-zinc-400 mb-3">
+                <span class="font-bold uppercase tracking-wider">Çalma Listelerin</span>
+                <i class="fas fa-plus hover:text-white cursor-pointer"></i>
+            </div>
+            <div id="playlist" class="space-y-3 text-sm overflow-y-auto max-h-64"></div>
+        </div>
+        <button onclick="toggleAdmin()" class="mt-auto bg-green-500 text-black px-4 py-2 rounded-full font-bold hover:bg-green-400 transition">Admin Modu</button>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <header class="h-16 bg-black/70 backdrop-blur-lg flex items-center justify-between px-8 border-b border-zinc-800 z-20">
+            <div class="flex items-center gap-4">
+                <button class="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center hover:bg-zinc-700"><i class="fas fa-chevron-left"></i></button>
+                <button class="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center hover:bg-zinc-700"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <input id="searchInput" type="text" placeholder="Şarkı veya sanatçı ara..." class="w-96 bg-zinc-800/80 px-5 py-2.5 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition" oninput="filterSongs()"/>
+            <div class="flex items-center gap-6">
+                <button class="bg-white text-black px-5 py-1.5 rounded-full text-sm font-bold hover:scale-105 transition">Premium'a geç</button>
+                <div class="w-9 h-9 bg-zinc-700 rounded-full overflow-hidden cursor-pointer"><img src="https://i.pravatar.cc/150?img=68" alt="user"/></div>
+            </div>
+        </header>
+
+        <section class="flex-1 overflow-y-auto bg-gradient-to-b from-zinc-950 to-black p-8 pb-32">
+            <h1 class="text-4xl font-black mb-10">Hoş Geldin, Umyt_Singer dünyasına</h1>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 mb-12" id="cards"></div>
+
+            <h2 class="text-2xl font-bold mb-6">Tüm Şarkılar</h2>
+            <table class="w-full text-left text-sm">
+                <thead class="text-zinc-400 uppercase text-xs tracking-wider border-b border-zinc-800">
+                    <tr><th class="py-4 w-10">#</th><th class="py-4">ŞARKI</th><th class="py-4">SANATÇI</th><th class="py-4 text-right"><i class="far fa-clock"></i></th></tr>
+                </thead>
+                <tbody id="tracks"></tbody>
+            </table>
+
+            <div id="visualizer" class="mt-12 rounded-xl overflow-hidden hidden w-full max-w-4xl mx-auto"></div>
+        </section>
+
+        <!-- Player Bar -->
+        <footer class="h-24 bg-zinc-900/95 backdrop-blur-2xl border-t border-zinc-800 flex items-center px-6 fixed bottom-0 left-72 right-0 z-50">
+            <div class="w-80 flex items-center gap-4">
+                <img id="npCover" src="https://picsum.photos/80?random=20" class="w-14 h-14 rounded shadow-lg object-cover"/>
+                <div class="flex-1 min-w-0">
+                    <div id="npTitle" class="font-medium truncate">Şarkı seç</div>
+                    <div id="npArtist" class="text-xs text-zinc-400 truncate">Umyt_Singer</div>
+                </div>
+                <i class="far fa-heart text-zinc-400 hover:text-white cursor-pointer transition"></i>
+            </div>
+
+            <div class="flex-1 flex flex-col items-center gap-1">
+                <div class="flex items-center gap-8 text-zinc-300 text-xl">
+                    <i class="fas fa-random hover:text-white cursor-pointer transition"></i>
+                    <i class="fas fa-backward-step hover:text-white cursor-pointer transition" onclick="prevSong()"></i>
+                    <button id="playPause" class="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black hover:scale-105 shadow-xl transition" onclick="togglePlay()">
+                        <i class="fas fa-play text-2xl ml-1"></i>
+                    </button>
+                    <i class="fas fa-forward-step hover:text-white cursor-pointer transition" onclick="nextSong()"></i>
+                    <i class="fas fa-repeat hover:text-white cursor-pointer transition"></i>
+                </div>
+                <div class="w-full max-w-xl flex items-center gap-3 text-xs text-zinc-500">
+                    <span id="currentTime">0:00</span>
+                    <div class="flex-1 h-1 bg-zinc-700 rounded-full cursor-pointer relative group" onclick="seek(event)">
+                        <div id="progress" class="h-full bg-green-500 rounded-full w-0 transition-all duration-100"></div>
+                    </div>
+                    <span id="totalTime">0:00</span>
+                </div>
+            </div>
+
+            <div class="w-80 flex justify-end items-center gap-5 text-zinc-400">
+                <i class="fas fa-microphone-alt hover:text-white cursor-pointer transition"></i>
+                <i class="fas fa-list hover:text-white cursor-pointer transition"></i>
+                <i class="fas fa-volume-up hover:text-white cursor-pointer transition"></i>
+                <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" class="w-28 accent-green-500 cursor-pointer"/>
+            </div>
+        </footer>
+    </main>
+
+    <!-- Admin Panel -->
+    <div id="admin-panel" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+        <div class="bg-zinc-900 p-8 rounded-2xl w-full max-w-md border border-zinc-700 shadow-2xl">
+            <h2 class="text-2xl font-bold mb-6 text-center">Admin: Yeni Şarkı Ekle</h2>
+            <input id="songTitle" type="text" placeholder="Şarkı Adı" class="w-full bg-zinc-800 p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+            <input id="songArtist" type="text" value="Umyt_Singer" class="w-full bg-zinc-800 p-3 rounded-lg mb-4 text-zinc-400 cursor-not-allowed" readonly/>
+            <input id="songUrl" type="url" placeholder="Direkt MP3 Linki (https://... .mp3)" class="w-full bg-zinc-800 p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+            <input id="songCover" type="url" placeholder="Kapak Resmi URL (isteğe bağlı)" class="w-full bg-zinc-800 p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+            <input id="songDuration" type="text" placeholder="Süre (ör: 3:45)" class="w-full bg-zinc-800 p-3 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-green-500"/>
+            <button onclick="addSong()" class="bg-green-500 text-black px-6 py-3 rounded-full font-bold w-full hover:bg-green-400 transition">Şarkıyı Ekle</button>
+            <button onclick="toggleAdmin()" class="mt-4 text-zinc-400 hover:text-white w-full text-center">Kapat</button>
+        </div>
+    </div>
+
+<audio id="audio" crossorigin="anonymous"></audio>
+
+<script>
+// Başlangıç şarkıları (sadece Umyt_Singer)
+let tracks = localStorage.getItem('tyhredTracks') ? JSON.parse(localStorage.getItem('tyhredTracks')) : [
+    { id: 0, title: "Umyt İlk Hit", artist: "Umyt_Singer", cover: "https://picsum.photos/300?random=20", url: "https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3", duration: "2:00" }
+];
+
+let currentIndex = -1;
+let audio = document.getElementById('audio');
+let isPlaying = false;
+let visCtx, visBars = new Array(40).fill(0);
+
+function init() {
+    renderAll();
+    const canvas = document.createElement('canvas');
+    canvas.width = window.innerWidth * 0.7;
+    canvas.height = 60;
+    document.getElementById('visualizer').appendChild(canvas);
+    visCtx = canvas.getContext('2d');
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth * 0.7; });
+}
+
+function renderAll() {
+    renderCards();
+    renderTable();
+    renderPlaylist();
+}
+
+function renderCards() {
+    const container = document.getElementById('cards');
+    container.innerHTML = tracks.map((t, i) => `
+        <div class="card bg-[#181818] p-4 rounded-xl cursor-pointer relative group" onclick="playSong(${i})">
+            <img src="${t.cover}" class="w-full aspect-square object-cover rounded-lg mb-4 shadow-2xl"/>
+            <div class="float-play absolute bottom-20 right-5 w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl"><i class="fas fa-play text-black ml-1"></i></div>
+            <div class="font-semibold truncate">${t.title}</div>
+            <div class="text-sm text-zinc-400 truncate">${t.artist}</div>
+        </div>
+    `).join('');
+}
+
+function renderTable() {
+    const tbody = document.getElementById('tracks');
+    tbody.innerHTML = tracks.map((t, i) => `
+        <tr class="hover:bg-zinc-800/60 cursor-pointer transition group" onclick="playSong(${i})">
+            <td class="py-3 px-4 group-hover:text-white">${i+1}</td>
+            <td class="py-3 flex items-center gap-4">
+                <img src="${t.cover}" class="w-10 h-10 rounded object-cover"/>
+                <div>
+                    <div class="track-title font-medium">${t.title}</div>
+                    <div class="text-xs text-zinc-400">${t.artist}</div>
+                </div>
+            </td>
+            <td class="py-3 text-zinc-400">${t.artist}</td>
+            <td class="py-3 text-right text-zinc-400">${t.duration}</td>
+        </tr>
+    `).join('');
+}
+
+function renderPlaylist() {
+    const pl = document.getElementById('playlist');
+    pl.innerHTML = tracks.map(t => `
+        <div class="flex items-center gap-3 p-2 hover:bg-zinc-900 rounded cursor-pointer transition">
+            <img src="${t.cover}" class="w-10 h-10 rounded object-cover"/>
+            <div class="min-w-0">
+                <div class="text-sm truncate">${t.title}</div>
+                <div class="text-xs text-zinc-500">${t.artist}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function playSong(idx) {
+    if (idx === currentIndex) return togglePlay();
+    currentIndex = idx;
+    const song = tracks[idx];
+    audio.src = song.url;
+    document.getElementById('npCover').src = song.cover;
+    document.getElementById('npTitle').textContent = song.title;
+    document.getElementById('npArtist').textContent = song.artist;
+    document.getElementById('totalTime').textContent = song.duration;
+    audio.play().catch(e => console.log("Oynatmak için tıkla:", e));
+    isPlaying = true;
+    updatePlayButton();
+    highlightActive();
+    document.getElementById('visualizer').classList.remove('hidden');
+    animateVisualizer();
+}
+
+function togglePlay() {
+    if (currentIndex === -1) return playSong(0);
+    if (audio.paused) {
+        audio.play();
+        isPlaying = true;
+    } else {
+        audio.pause();
+        isPlaying = false;
+    }
+    updatePlayButton();
+}
+
+function updatePlayButton() {
+    document.getElementById('playPause').innerHTML = isPlaying 
+        ? '<i class="fas fa-pause text-2xl"></i>' 
+        : '<i class="fas fa-play text-2xl ml-1"></i>';
+}
+
+audio.ontimeupdate = () => {
+    if (!audio.duration) return;
+    const progress = (audio.currentTime / audio.duration) * 100;
+    document.getElementById('progress').style.width = progress + '%';
+    document.getElementById('currentTime').textContent = formatTime(audio.currentTime);
+};
+
+function formatTime(seconds) {
+    const min = Math.floor(seconds / 60);
+    const sec = Math.floor(seconds % 60);
+    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+}
+
+function seek(e) {
+    const bar = e.currentTarget;
+    const percent = e.offsetX / bar.offsetWidth;
+    audio.currentTime = percent * audio.duration;
+}
+
+function nextSong() {
+    currentIndex = (currentIndex + 1) % tracks.length;
+    playSong(currentIndex);
+}
+
+function prevSong() {
+    currentIndex = (currentIndex - 1 + tracks.length) % tracks.length;
+    playSong(currentIndex);
+}
+
+function highlightActive() {
+    document.querySelectorAll('#tracks tr').forEach(r => r.classList.remove('active-track'));
+    const rows = document.querySelectorAll('#tracks tr');
+    if (rows[currentIndex]) rows[currentIndex].classList.add('active-track');
+}
+
+function filterSongs() {
+    const val = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('#cards > div').forEach((c, i) => {
+        c.style.display = (tracks[i].title.toLowerCase().includes(val) || tracks[i].artist.toLowerCase().includes(val)) ? '' : 'none';
+    });
+    document.querySelectorAll('#tracks tr').forEach((r, i) => {
+        r.style.display = (tracks[i].title.toLowerCase().includes(val) || tracks[i].artist.toLowerCase().includes(val)) ? '' : 'none';
+    });
+}
+
+function focusSearch() {
+    document.getElementById('searchInput').focus();
+}
+
+document.getElementById('volume').oninput = e => audio.volume = e.target.value;
+
+function animateVisualizer() {
+    if (!visCtx || !isPlaying) return;
+    requestAnimationFrame(animateVisualizer);
+    visCtx.clearRect(0, 0, visCtx.canvas.width, 60);
+    for (let i = 0; i < visBars.length; i++) {
+        visBars[i] = Math.max(visBars[i] - 3, Math.random() * 55);
+        const h = visBars[i];
+        visCtx.fillStyle = `hsl(${120 - h * 1.8}, 85%, 55%)`;
+        visCtx.fillRect(i * 22 + 10, 60 - h, 18, h);
+    }
+}
+
+function toggleAdmin() {
+    const panel = document.getElementById('admin-panel');
+    panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+}
+
+function addSong() {
+    const title = document.getElementById('songTitle').value.trim();
+    const url = document.getElementById('songUrl').value.trim();
+    const cover = document.getElementById('songCover').value.trim() || 'https://picsum.photos/300?random=' + Date.now();
+    const duration = document.getElementById('songDuration').value.trim() || '0:00';
+
+    if (!title || !url) return alert('Şarkı adı ve direkt MP3 linki zorunlu!');
+
+    tracks.push({
+        id: tracks.length,
+        title,
+        artist: 'Umyt_Singer',
+        cover,
+        url,
+        duration
+    });
+
+    localStorage.setItem('tyhredTracks', JSON.stringify(tracks));
+    renderAll();
+    toggleAdmin();
+    alert('Şarkı başarıyla eklendi! 🔥');
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
